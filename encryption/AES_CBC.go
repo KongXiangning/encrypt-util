@@ -1,0 +1,53 @@
+package encryption
+
+import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+)
+
+
+type CBC struct {
+
+}
+
+
+func (e *CBC)Encrypt(origData []byte, key []byte, IV []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	blockSize := block.BlockSize()
+	origData = PKCS5Padding(origData, blockSize)
+	blockMode := cipher.NewCBCEncrypter(block, IV[:blockSize])
+	crypted := make([]byte, len(origData))
+	blockMode.CryptBlocks(crypted, origData)
+	return crypted, nil
+}
+
+func (e *CBC)Decrypt(crypted []byte, key []byte, IV []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	blockSize := block.BlockSize()
+	blockMode := cipher.NewCBCDecrypter(block, IV[:blockSize])
+
+	origData := make([]byte, len(crypted))
+	blockMode.CryptBlocks(origData, crypted)
+	origData = PKCS5UnPadding(origData)
+	return origData, nil
+}
+
+func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
+}
+
+func PKCS5UnPadding(origData []byte) []byte {
+	length := len(origData)
+	unpadding := int(origData[length-1])
+	return origData[:(length - unpadding)]
+}
